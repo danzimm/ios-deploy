@@ -111,7 +111,7 @@ char *args = NULL;
 char *envs = NULL;
 char *list_root = NULL;
 const char * custom_script_path = NULL;
-int _timeout = 0;
+int _timeout = -1;
 int _detectDeadlockTimeout = 0;
 bool _json_output = false;
 NSMutableArray *_file_meta_info = nil;
@@ -2584,8 +2584,8 @@ int main(int argc, char *argv[]) {
         setbuf(stderr, NULL);
     }
 
-    if (detect_only && _timeout == 0) {
-        _timeout = 5;
+    if (detect_only && _timeout == -1) {
+        _timeout = 0;
     }
 
     if (app_path) {
