@@ -2595,7 +2595,7 @@ int main(int argc, char *argv[]) {
     }
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap
-    if (_timeout > 0)
+    if (_timeout >= 0)
     {
         CFRunLoopTimerRef timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + _timeout, 0, 0, 0, timeout_callback, NULL);
         CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, kCFRunLoopCommonModes);
