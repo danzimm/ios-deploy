@@ -114,6 +114,7 @@ const char * custom_script_path = NULL;
 double _timeout = -1;
 int _detectDeadlockTimeout = 0;
 bool _json_output = false;
+NSMutableArray *_batched_json = NULL;
 NSMutableArray *_file_meta_info = nil;
 int port = 0;    // 0 means "dynamically assigned"
 CFStringRef last_path = NULL;
@@ -213,19 +214,34 @@ void NSLogVerbose(NSString* format, ...) {
     }
 }
 
+void _NSLogJSON(id obj) {
+    NSError *error;
+    NSData *data = [NSJSONSerialization dataWithJSONObject:obj
+                                                       options:NSJSONWritingPrettyPrinted
+                                                         error:&error];
+    if (data) {
+        NSString *jsonString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        [jsonString writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
+        [jsonString release];
+    } else {
+        [@"{\"JSONError\": \"JSON error\"}" writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
+    }
+}
+
 void NSLogJSON(NSDictionary* jsonDict) {
-    if (_json_output) {
-        NSError *error;
-        NSData *data = [NSJSONSerialization dataWithJSONObject:jsonDict
-                                                           options:NSJSONWritingPrettyPrinted
-                                                             error:&error];
-        if (data) {
-            NSString *jsonString = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-            [jsonString writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
-            [jsonString release];
-        } else {
-            [@"{\"JSONError\": \"JSON error\"}" writeToFile:@"/dev/stdout" atomically:NO encoding:NSUTF8StringEncoding error:nil];
-        }
+    if (!_json_output) {
+        return;
+    }
+    if (_batched_json) {
+        [_batched_json addObject:jsonDict];
+    } else {
+        _NSLogJSON(jsonDict);
+    }
+}
+
+static void dump_batched_json(void) {
+    if (_batched_json) {
+        _NSLogJSON(_batched_json);
     }
 }
 
@@ -2409,6 +2425,7 @@ int main(int argc, char *argv[]) {
         { "key", optional_argument, NULL, 'k' },
         { "custom-script", required_argument, NULL, 1001},
         { "custom-command", required_argument, NULL, 1002},
+        { "batch-json", no_argument, NULL, 1003 },
         { NULL, 0, NULL, 0 },
     };
     int ch;
@@ -2569,6 +2586,11 @@ int main(int argc, char *argv[]) {
         case 'k':
             if (!keys) keys = [[NSMutableArray alloc] init];
             [keys addObject: [NSString stringWithUTF8String:optarg]];
+            break;
+        case 1003:
+            _json_output = true;
+            _batched_json = [[NSMutableArray alloc] init];
+            atexit(dump_batched_json);
             break;
         default:
             usage(argv[0]);
