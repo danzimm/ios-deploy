@@ -111,7 +111,7 @@ char *args = NULL;
 char *envs = NULL;
 char *list_root = NULL;
 const char * custom_script_path = NULL;
-int _timeout = -1;
+double _timeout = -1;
 int _detectDeadlockTimeout = 0;
 bool _json_output = false;
 NSMutableArray *_file_meta_info = nil;
@@ -2438,9 +2438,16 @@ int main(int argc, char *argv[]) {
         case 'v':
             verbose = true;
             break;
-        case 't':
-            _timeout = atoi(optarg);
-            break;
+        case 't': {
+            char *end = NULL;
+            double to = strtod(optarg, &end);
+            if (*end == '\0') {
+              _timeout = to;
+            } else {
+              usage(argv[0]);
+              on_error(@"The --timeout option requires a valid double");
+            }
+        } break;
         case 'u':
             unbuffered = true;
             break;
@@ -2584,8 +2591,8 @@ int main(int argc, char *argv[]) {
         setbuf(stderr, NULL);
     }
 
-    if (detect_only && _timeout == -1) {
-        _timeout = 0;
+    if (detect_only && _timeout < 0) {
+        _timeout = 0.1;
     }
 
     if (app_path) {
@@ -2595,7 +2602,7 @@ int main(int argc, char *argv[]) {
     }
 
     AMDSetLogLevel(5); // otherwise syslog gets flooded with crap
-    if (_timeout >= 0)
+    if (_timeout > 0)
     {
         CFRunLoopTimerRef timer = CFRunLoopTimerCreate(NULL, CFAbsoluteTimeGetCurrent() + _timeout, 0, 0, 0, timeout_callback, NULL);
         CFRunLoopAddTimer(CFRunLoopGetCurrent(), timer, kCFRunLoopCommonModes);
