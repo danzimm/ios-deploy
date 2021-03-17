@@ -94,6 +94,7 @@ int AMDServiceConnectionSend(ServiceConnRef con, const void * data, size_t size)
 int AMDServiceConnectionReceive(ServiceConnRef con, void * data, size_t size);
 
 bool found_device = false, debug = false, verbose = false, unbuffered = false, nostart = false, debugserver_only = false, detect_only = false, install = true, uninstall = false, no_wifi = false;
+bool allow_empty_detect = false;
 bool command_only = false;
 char *command = NULL;
 char const*target_filename = NULL;
@@ -2309,7 +2310,7 @@ void timeout_callback(CFRunLoopTimerRef timer, void *info) {
             NSLogOut(@"[....] No more devices found.");
         }
 
-        if (detect_only && !found_device) {
+        if (detect_only && !found_device && !allow_empty_detect) {
             exit(exitcode_error);
             return;
         } else {
@@ -2330,6 +2331,7 @@ void usage(const char* app) {
         @"  -d, --debug                  launch the app in lldb after installation\n"
         @"  -i, --id <device_id>         the id of the device to connect to\n"
         @"  -c, --detect                 only detect if the device is connected\n"
+        @"  --detect-allow-empty         same as detect, but won't exit 253 when no devices are attached\n"
         @"  -b, --bundle <bundle.app>    the path to the app bundle to be installed\n"
         @"  -a, --args <args>            command line arguments to pass to the app when launching it\n"
         @"  -s, --envs <envs>            environment variables, space separated key-value pairs, to pass to the app when launching it\n"
@@ -2364,6 +2366,7 @@ void usage(const char* app) {
         @"  -f, --file_system            specify file system for mkdir / list / upload / download / rm\n"
         @"  -F, --non-recursively        specify non-recursively walk directory\n"
         @"  -j, --json                   format output as JSON\n"
+        @"  --batch-json                 format output as JSON, but wait to collect all JSON events before emitting an array\n"
         @"  -k, --key                    keys for the properties of the bundle. Joined by ',' and used only with -B <list_bundle_id> and -j <json> \n"
         @"  --custom-script <script>     path to custom python script to execute in lldb\n"
         @"  --custom-command <command>   specify additional lldb commands to execute\n",
@@ -2374,6 +2377,12 @@ void show_version() {
     NSLogOut(@"%@", @
 #include "version.h"
              );
+}
+
+static void detect_flag(bool allow_empty) {
+    detect_only = true;
+    debug = true;
+    allow_empty_detect = allow_empty;
 }
 
 int main(int argc, char *argv[]) {
@@ -2426,6 +2435,7 @@ int main(int argc, char *argv[]) {
         { "custom-script", required_argument, NULL, 1001},
         { "custom-command", required_argument, NULL, 1002},
         { "batch-json", no_argument, NULL, 1003 },
+        { "detect-allow-empty", no_argument, NULL, 1004 },
         { NULL, 0, NULL, 0 },
     };
     int ch;
@@ -2485,8 +2495,7 @@ int main(int argc, char *argv[]) {
             debug = true;
             break;
         case 'c':
-            detect_only = true;
-            debug = true;
+            detect_flag(false);
             break;
         case 'V':
             show_version();
@@ -2591,6 +2600,9 @@ int main(int argc, char *argv[]) {
             _json_output = true;
             _batched_json = [[NSMutableArray alloc] init];
             atexit(dump_batched_json);
+            break;
+        case 1004:
+            detect_flag(true);
             break;
         default:
             usage(argv[0]);
