@@ -2082,8 +2082,11 @@ void handle_device(AMDeviceRef device) {
     }
     CFStringRef found_device_id = CFAutorelease(AMDeviceCopyDeviceIdentifier(device));
     if (device_id != NULL) {
+        NSString *ns_found_device_id = [(NSString *)found_device_id stringByReplacingOccurrencesOfString:@"-" withString:@""];
         CFStringRef deviceCFSTR = CFAutorelease(CFStringCreateWithCString(NULL, device_id, kCFStringEncodingUTF8));
-        if (CFStringCompare(deviceCFSTR, found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo) {
+        BOOL equal = CFStringCompare(deviceCFSTR, (CFStringRef)ns_found_device_id, kCFCompareCaseInsensitive) == kCFCompareEqualTo;
+        [ns_found_device_id release];
+        if (equal) {
             found_device = true;
         } else {
             NSLogOut(@"Skipping %@.", device_full_name);
